@@ -13,6 +13,7 @@ express = require 'express'
 request = require 'request'
 app     = express.createServer()
 icon    = false
+t       = null
 
 app.use express.bodyParser()
 app.use express.static(__dirname + '/public')
@@ -22,6 +23,11 @@ app.set 'view engine', 'jade'
 app.get /^\/fav\/(.+)/, ( req, res ) ->
     
     site = req.params[0]
+    t = setTimeout ()->
+        getDefaultIcon ( $icon )->
+            sendIcon.call res, $icon, png
+    , 5000
+
     if site and isSite site then findFav site, ( $icon )->
         sendIcon.call res, $icon
 
@@ -57,6 +63,9 @@ getDefaultIcon = ( $fun )->
     ###
 
 sendIcon = ( $icon, $type='x-ico' ) ->
+
+    clearTimeout t
+    t = null
     @writeHead 200, 'Content-Type': "image/#{ $type }"
     @write $icon, 'binary'
     @end()
@@ -68,8 +77,11 @@ findFav = ( $url, $fun ) ->
 
     if site then request uri: "http://#{ site }/favicon.ico", encoding: 'binary', ( $err, $res, $body )->
 
+        ###
         if $res.statusCode is 404 then return getIconFromHtml site, ( $icon )->
             $fun $icon
+        ###
+
         if $err or not $res.statusCode or $res.statusCode isnt 200
             getDefaultIcon ( $icon )->
                 $fun $icon
