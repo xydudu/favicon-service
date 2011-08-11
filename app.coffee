@@ -9,7 +9,7 @@
 fs = require 'fs'
 url     = require 'url'
 express = require 'express'
-keygrip = require 'keygrip'
+#keygrip = require 'keygrip'
 request = require 'request'
 app     = express.createServer()
 icon    = false
@@ -67,8 +67,18 @@ findFav = ( $url, $fun ) ->
     site = url.parse( $url ).hostname
 
     if site then request uri: "http://#{ site }/favicon.ico", encoding: 'binary', ( $err, $res, $body )->
+
+        if $res.statusCode is 404 then return getIconFromHtml site, ( $icon )->
+            $fun $icon
         if $err or $res.statusCode isnt 200
             getDefaultIcon ( $icon )->
                 $fun $icon
         else
             $fun $body
+
+#fin the favicon from the head in html
+#有必要么？有必要么？
+getIconFromHtml = ( $site, $fun ) ->
+    # finish it later 
+    $fun 'nothing'
+    
