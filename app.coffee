@@ -70,7 +70,7 @@ findFav = ( $url, $fun ) ->
 
         if $res.statusCode is 404 then return getIconFromHtml site, ( $icon )->
             $fun $icon
-        if $err or $res.statusCode isnt 200
+        if $err or not $res.statusCode or $res.statusCode isnt 200
             getDefaultIcon ( $icon )->
                 $fun $icon
         else
