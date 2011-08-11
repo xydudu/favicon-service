@@ -1,4 +1,6 @@
-h1. 取得网站的favicon图标
+
+
+取得网站的favicon图标
     
 示例：
     http://yourservice/fav/www.google.com
