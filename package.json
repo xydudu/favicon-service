@@ -1,0 +1,10 @@
+{
+  "name": "getfavicon",
+  "version": "1.0.0",
+  "dependencies": {
+    "express": "2.0.0",
+    "jade": "0.10.1",
+    "request": "2.0.2",
+    "keygrip": "0.1.7"
+  }
+}

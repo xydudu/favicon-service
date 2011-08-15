@@ -48,7 +48,7 @@ app.get "/", ( req, res ) ->
     res.render 'index', layout: false
         
 
-app.listen '8888'
+app.listen '8080'
 
 isUrl = ( $url )->
     regexp = /((http|https):\/\/)?(\w+:{0,1}\w*@)?(\S+)(:[0-9]+)?(\/|\/([\w#!:.?+=&%@!\-\/]))?/
