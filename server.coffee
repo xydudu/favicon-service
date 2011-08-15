@@ -15,6 +15,7 @@ request = require 'request'
 app     = express.createServer()
 icon    = false
 sended  = false
+etagKey = null
 
 app.use express.bodyParser()
 app.use express.static(__dirname + '/public')
@@ -24,6 +25,8 @@ app.set 'view engine', 'jade'
 app.get /^\/fav\/(.+)/, ( req, res ) ->
     
     favurl = req.params[0]
+
+    etagKey = keygrip( req.params ).sign 'xydudu'
 
     if isUrl favurl
         favurl = "http://#{ favurl }" if not /^http/.test favurl
@@ -102,11 +105,18 @@ findIconFromHtml = ( $pageurl, $fun )->
                 sendIcon.call self, $icon
 
 
-sendIcon = ( $icon, $type='x-ico' )->
+sendIcon = ( $icon, $type='x-icon' )->
     if sended then return
     sended = true
     try
-        @writeHead 200, 'Content-Type': "image/#{ $type }"
+        header =
+            'Content-Type': "image/#{ $type }"
+            'Content-Length': $icon.length
+            'ETag': etagKey
+            'Cache-Control': 'public max-age=3600'
+
+        #@writeHead 200, 'Content-Type': "image/#{ $type }"
+        @writeHead 200, header
         @write $icon, 'binary'
         @end()
     catch $err
