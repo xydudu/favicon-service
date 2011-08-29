@@ -9,36 +9,46 @@
 
 url     = require 'url'
 request = require 'request'
-finish  = false
 
+finish  = {}
+htmlprocess = {}
 
 isUrl = ( $url )->
     regexp = /((http|https):\/\/)?(\w+:{0,1}\w*@)?(\S+)(:[0-9]+)?(\/|\/([\w#!:.?+=&%@!\-\/]))?/
     return regexp.test $url
 
-iconFromUrl = ( $url, $fun, $nonext = false )->
+iconFromUrl = ( $url, $key, $fun, $nonext=false )->
     
     console.log "try to find fav from #{$url}"
 
-    if finish then return false
+    if finish[ $key ] then return false
 
-    favurl = $url
+    favurl = _url = $url
     favurl = "http://#{ favurl }" if not /^http/.test favurl
     favurl = url.parse( favurl )
+    _url = "#{ favurl.protocol }//#{ favurl.hostname }/favicon.ico"
 
-    request uri: "#{ favurl.protocol }//#{ favurl.hostname }/favicon.ico", encoding: 'binary', ( $err, $res, $body )->
+    request.get uri: _url, encoding: 'binary', timeout: 5000, ( $err, $res, $body )->
 
-        if 200 is $res.statusCode and isImage $res.headers
-            $fun $body
+        if not $err and 200 is $res.statusCode and isImage $res.headers
+            console.log 'no err'
+            return $fun { err: 0, data: $body }
+        else
+            console.log 'err'
+            if htmlprocess[ $key ] then return $fun { err: 1, data: favurl.hostname }
+            if not $nonext then iconFromHTML favurl.href, $key, $fun, favurl.hostname
 
-    if not $nonext then iconFromHTML favurl.href, $fun
+        finish[ $key ] = true
 
-iconFromHTML = ( $pageurl, $fun )->
+    #if not $nonext then iconFromHTML favurl.href, $key, $fun
 
-    if finish then return false
-    request uri: $pageurl, ( $err, $res, $body )->
+iconFromHTML = ( $pageurl, $key, $fun, $host )->
 
-        if 200 is $res.statusCode
+    if finish[ $key ] then return false
+    request.get uri: $pageurl, timeout: 5000, ( $err, $res, $body )->
+
+        if not $err and 200 is $res.statusCode
+            console.log 'haha...find from html'
 
             pageurl = url.parse $pageurl
 
@@ -49,12 +59,18 @@ iconFromHTML = ( $pageurl, $fun )->
             reg.exec link
             ico = RegExp.$1
 
+            console.log "ico is #{ico}"
+
             if /^http/.test ico
                 ico = ico
             else
                 ico = if /^\//.test ico then "#{ pageurl.protocol }//#{ pageurl.hostname }#{ ico }" else "#{ $pageurl }/#{ ico }"
             
-            iconFromUrl ico, $fun, true
+            iconFromUrl ico, $key, $fun, htmlprocess[ $key ] = true
+        else
+            console.log 'find from htm err'
+            $fun { err: 1, data: $host }
+
 
 
 isImage = ( $header )->
@@ -62,22 +78,24 @@ isImage = ( $header )->
     return /image/.test $header['content-type']
 
 
-main = ( $url, $fun )->
+main = ( $url, $key, $fun )->
     
     console.log "URL:#{ $url }"
 
     fn = $fun || ( $result )->
-        if not finish
+        if not finish[ $key ]
             console.log $result
-        finish = true
+        finish[ $key ] = true
 
+    ###
     t = setTimeout ()->
-        fn 'false'
+        fn 'timeout'
         clearTimeout t
     , 20000
+    ###
 
     if isUrl $url
-        iconFromUrl $url, fn
+        iconFromUrl $url, $key, fn
 
 if require.main is module
     main.apply this, process.argv.slice(2)

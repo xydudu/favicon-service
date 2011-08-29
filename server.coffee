@@ -7,7 +7,7 @@
 
 sys     = require 'sys'
 fs      = require 'fs'
-url     = require 'url'
+fav     = require './module/favicon'
 express = require 'express'
 keygrip = require 'keygrip'
 request = require 'request'
@@ -15,107 +15,62 @@ request = require 'request'
 app     = express.createServer()
 icon    = false
 sended  = false
-etagKey = null
 
 app.use express.bodyParser()
 app.use express.static(__dirname + '/public')
 app.set 'views', __dirname + '/view'
 app.set 'view engine', 'jade'
+app.set 'view options', layout: false
 
 app.get /^\/fav\/(.+)/, ( req, res ) ->
     
     favurl = req.params[0]
-
     etagKey = keygrip( req.params ).sign 'xydudu'
 
-    if isUrl favurl
-        favurl = "http://#{ favurl }" if not /^http/.test favurl
-        favurl = url.parse( favurl )
-        
-        #直接找根目录
-        getIconFromUrl.call res, "#{ favurl.protocol }//#{ favurl.hostname }/favicon.ico", ( $icon )->
-            sendIcon.call res, $icon
-
-        #从HTML中找favicon地址并获取过来
-        findIconFromHtml.call res, favurl.href, ( $url )->
-            getIconFromUrl.call res, $url, ( $icon )->
-                sendIcon.call res, $icon
-
-
-    else getDefaultIcon ( $icon )->
-        sendIcon.call res, $icon, 'png'
-
-
-app.get "/", ( req, res ) ->
+    if req.header('If-None-Match') is etagKey
+        console.log '304'
+        res.writeHead 304, 'Content-Type': 'image/png'
+        res.end()
+        return
     
-    res.render 'index', layout: false
+
+    fs.readFile "#{__dirname}/public/cache/#{etagKey}.png", "binary", ( $err, $data )->
+        if $err
+            console.log 'no cache file'
+            fav favurl, etagKey, ( $json )->
+                if $json.err
+
+                   console.log 'all is err'
+                   getFromAPI $json.data, ( $data )->
+                        sendIcon.call res, $data, etagKey
+                        saveFile etagKey, $json.data
+
+                else
+                    sendIcon.call res, $json.data, etagKey
+                    saveFile etagKey, $json.data
+        else
+            console.log 'use cache file'
+            sendIcon.call res, $data, etagKey
+
+    
+app.get "/", ( req, res ) ->
+
+    res.render 'index', domain: 'favicon.xydudu.com'
         
 
+console.log 'ok, port 8080'
 app.listen '8080'
 
-isUrl = ( $url )->
-    regexp = /((http|https):\/\/)?(\w+:{0,1}\w*@)?(\S+)(:[0-9]+)?(\/|\/([\w#!:.?+=&%@!\-\/]))?/
-    return regexp.test $url
-
-getDefaultIcon = ( $fun )->
-
-    return $fun( icon ) if icon is on
-
-    defaultIcon = "#{__dirname}/public/favicons.png"
-    fs.readFile defaultIcon, 'binary', ( $err, $data ) ->
-        if not $err then $fun $data
-
-getIconFromUrl = ( $url, $fun )->
-
-    self = @
-    request uri: $url, encoding: 'binary', ( $err, $res, $body )->
-
-        try
-            if $err or 200 isnt $res.statusCode
-                getDefaultIcon ( $icon )->
-                    sendIcon.call self, $icon, 'png'
-            else
-                $fun $body
-
-        catch $err
-            getDefaultIcon ( $icon )->
-                sendIcon.call self, $icon, 'png'
-
-findIconFromHtml = ( $pageurl, $fun )->
+sendIcon = ( $icon, $etagKey )->
     
-    self = @
-    request uri: $pageurl, ( $err, $res, $body )->
-        if $err or 200 isnt $res.statusCode
-            getDefaultIcon ( $icon )->
-                sendIcon.call self $icon, 'png'
-        else
-            # <link rel="shortcut icon" href="favicon.ico" type="image/x-icon" />
-            pageurl = url.parse $pageurl
-            link = $body.match /<link.*(shortcut )?icon.*\/>/g
-            link = link[0] if link? and link[0]?
-            reg = /href\=[\"|\'](.+\.ico)[\"|\']/gi
-            reg.exec link
-            ico = RegExp.$1
-            if /^http/.test ico
-                ico = ico
-            else
-                ico = if /^\//.test ico then "#{ pageurl.protocol }//#{ pageurl.hostname }#{ ico }" else "#{ $pageurl }/#{ ico }"
-            
-            getIconFromUrl.call self, ico, ( $icon )->
-                sendIcon.call self, $icon
-
-
-sendIcon = ( $icon, $type='x-icon' )->
-    if sended then return
     sended = true
     try
         header =
-            'Content-Type': "image/#{ $type }"
+            'Content-Type': "image/png"
             'Content-Length': $icon.length
-            'ETag': etagKey
+            'ETag': $etagKey
             'Cache-Control': 'public max-age=3600'
 
-        #@writeHead 200, 'Content-Type': "image/#{ $type }"
         @writeHead 200, header
         @write $icon, 'binary'
         @end()
@@ -123,4 +78,15 @@ sendIcon = ( $icon, $type='x-icon' )->
         sended = false
     finally
         sended = false
-        
+
+saveFile = ( $key, $data )->
+
+    fs.writeFile "#{__dirname}/public/cache/#{$key}.png", $data, 'binary', ( $err )->
+        if $err
+            console.log 'save have problem'
+        else
+            console.log 'It\'s saved!'
+
+getFromAPI = ( $url, $fun )->
+    request.get uri: "http://www.google.com/s2/favicons?domain=#{$url}", encoding: 'binary', ( $err, $res, $data )->
+        if not $err then $fun $data
