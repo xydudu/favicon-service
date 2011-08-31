@@ -66,7 +66,7 @@ sendIcon = ( $icon, $etagKey )->
     sended = true
     try
         header =
-            'Content-Type': "image/png"
+            'Content-Type': "image/x-icon"
             'Content-Length': $icon.length
             'ETag': $etagKey
             'Cache-Control': 'public max-age=3600'
