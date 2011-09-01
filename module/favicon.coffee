@@ -87,13 +87,6 @@ main = ( $url, $key, $fun )->
             console.log $result
         finish[ $key ] = true
 
-    ###
-    t = setTimeout ()->
-        fn 'timeout'
-        clearTimeout t
-    , 20000
-    ###
-
     if isUrl $url
         iconFromUrl $url, $key, fn
 

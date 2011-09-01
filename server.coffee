@@ -81,12 +81,15 @@ sendIcon = ( $icon, $etagKey )->
 
 saveFile = ( $key, $data )->
 
-    fs.writeFile "#{__dirname}/public/cache/#{$key}.png", $data, 'binary', ( $err )->
+    fs.writeFile "#{__dirname}/public/cache/#{$key}", $data, 'binary', ( $err )->
         if $err
             console.log 'save have problem'
         else
             console.log 'It\'s saved!'
 
 getFromAPI = ( $url, $fun )->
-    request.get uri: "http://www.google.com/s2/favicons?domain=#{$url}", encoding: 'binary', ( $err, $res, $data )->
-        if not $err then $fun $data
+    request.get uri: "http://www.google.com/s2/favicons?domain=#{$url}", encoding: 'binary', timeout: 10000, ( $err, $res, $data )->
+        if not $err then return $fun $data
+        fs.readFile "#{__dirname}/public/favicon.png", "binary", ( $err, _data )->
+            if not $err
+                $fun _data
