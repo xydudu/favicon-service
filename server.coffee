@@ -6,10 +6,8 @@
 #   默认的
 
 sys     = require 'sys'
-fs      = require 'fs'
 fav     = require './module/favicon'
 express = require 'express'
-keygrip = require 'keygrip'
 request = require 'request'
 
 app     = express.createServer()
@@ -23,61 +21,18 @@ app.set 'view engine', 'jade'
 app.set 'view options', layout: false
 
 app.get /^\/fav\/(.+)/, ( req, res ) ->
-    
+
     favurl = req.params[0]
-    etagKey = keygrip( req.params ).sign 'xydudu'
-
-    if req.header('If-None-Match') is etagKey
-        console.log '304'
-        res.writeHead 304, 'Content-Type': 'image/png'
-        res.end()
-        return
-    
-
-    fs.readFile "#{__dirname}/public/cache/#{etagKey}.png", "binary", ( $err, $data )->
-        if $err
-            console.log 'no cache file'
-            fav favurl, etagKey, ( $json )->
-                if $json.err
-
-                   console.log 'all is err'
-                   getFromAPI $json.data, ( $data )->
-                        sendIcon.call res, $data, etagKey
-                        saveFile etagKey, $json.data
-
-                else
-                    sendIcon.call res, $json.data, etagKey
-                    saveFile etagKey, $json.data
-        else
-            console.log 'use cache file'
-            sendIcon.call res, $data, etagKey
+    f = new fav favurl, req, res, "#{__dirname}/public/favicon.png", "#{__dirname}/public/cache"
 
     
 app.get "/", ( req, res ) ->
 
-    res.render 'index', domain: 'favicon.xydudu.com'
+    res.render 'index', domain: 'node.local:8081'
         
 
-console.log 'ok, port 8080'
-app.listen '8080'
-
-sendIcon = ( $icon, $etagKey )->
-    
-    sended = true
-    try
-        header =
-            'Content-Type': "image/x-icon"
-            'Content-Length': $icon.length
-            'ETag': $etagKey
-            'Cache-Control': 'public max-age=3600'
-
-        @writeHead 200, header
-        @write $icon, 'binary'
-        @end()
-    catch $err
-        sended = false
-    finally
-        sended = false
+console.log 'ok, port 8081'
+app.listen '8081'
 
 saveFile = ( $key, $data )->
 

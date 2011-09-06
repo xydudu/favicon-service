@@ -4,93 +4,186 @@
     @xydudu
     xydudu.com
     8.25/2011
+    9.05/2011 beta 2.0
 
 ###
-
+keygrip = require 'keygrip'
 url     = require 'url'
+fs      = require 'fs'
 request = require 'request'
 
-finish  = {}
-htmlprocess = {}
+INIT = 1
+CACHEOVER = 2
+REQUESTROOT = 3
+REQUESTHTML = 4
+REQUESTHTMLICO = 5
 
+DEFAULTICON = 0
+
+class favService
+
+    constructor: ( @url, @req, @res, @defaultIcon, @savePath ) ->
+
+        @log '开始了'
+        @process = INIT
+        if not isUrl @url
+            return @sendDefault()
+
+        if not /^http/.test @url then @url = "http://#{ @url }"
+
+        [ @key, @rootUrl ] = @parseUrl @url
+        @log "#{@key} ---- #{@url}"
+
+
+        # Etag 
+        if req.header('If-None-Match') is @key
+            @log '304'
+            @res.writeHead 304, 'Content-Type': 'image/png'
+            @res.end()
+            return
+        
+        # Cache File
+        _ = @
+        fs.readFile "#{ @savePath }/#{ @key }", "binary", ( $err, $data )->
+            
+            _.process = CACHEOVER
+            if $err
+                _.log.call _, '没找到缓存文件'
+                return _.getIcon.call _, "#{ _.rootUrl }/favicon.ico", ( $json )->
+                    if $json.err
+                       _.log.call _, '寻找完全失败'
+                       _.sendDefault.call _
+                    else
+                       _.log.call _, '要发送了。。。'
+                       _.sendIcon.call _, $json.data
+                       _.saveFile.call _, $json.data
+
+            _.log '读取并使用缓存文件'
+            _.sendIcon.call _, $data
+
+    log: ( $msg )->
+        
+        console.log "[#{@url}][#{@process}]---#{$msg}"
+
+    getIcon: ( $ico, $fun )->
+        
+        # Get icon from root/favicon.ico
+        _ = @
+        @log "在[#{ $ico }]中寻找"
+        
+        request.get uri: $ico, encoding: 'binary', timeout: 15000, ( $err, $res, $body )->
+            
+            _.process = REQUESTROOT if _.process isnt REQUESTHTML
+            if not $err and 200 is $res.statusCode and _.isImage $res.headers
+
+                _.log.call _, "[#{$ico}]已找到"
+                return $fun { err: 0, data: $body }
+
+            else
+                _.log.call _, "[#{$ico}]没找到"
+                _.findIconFromHtml.call _, _.url, ( $data )->
+                    _.log.call _, '在html中寻找结束'
+                    return $fun $data
+
+
+    findIconFromHtml: ( $url, $fun )->
+
+        if @process is REQUESTHTML then return false
+
+        @log "开始在HTML上寻找"
+        _ = @
+        request.get uri: $url, timeout: 5000, ( $err, $res, $body )->
+            _.process = REQUESTHTML
+            if not $err and 200 is $res.statusCode
+
+                _.log.call _, "完成HTML请求"
+
+                pageurl = url.parse $url
+                link = $body.match /<link.*(shortcut )?icon.*\/>/g
+                link = link[0] if link? and link[0]?
+
+                reg = /href\=[\"|\'](.+\.ico)[\"|\']/gi
+                reg.exec link
+
+                if RegExp.$1
+                    ico = RegExp.$1
+                    if /^http/.test ico
+                        ico = ico
+                    else
+                        ico = if /^\//.test ico then "#{ pageurl.protocol }//#{ pageurl.hostname }#{ ico }" else "#{ $url }/#{ ico }"
+                
+                    _log.call _, "ico是[#{ ico }]"
+                    _.getIcon ico, $fun
+                else
+                    $fun { err: 1, data: $url }
+            else
+                _.log.call _, '请求HTML失败了'
+                $fun { err: 1, data: $url }
+
+
+
+    isImage: ( $header )->
+        return /image/.test $header['content-type']
+
+    # 获得特定key, hostname, protocol
+    parseUrl: ( $url )->
+
+        _url = $url
+        _url = "http://#{ _url }" if not /^http/.test _url
+        _url = url.parse( _url )
+
+        return [
+            keygrip( [ _url.hostname ] ).sign 'xydudu'
+            "#{ _url.protocol }//#{ _url.hostname }/"
+        ]
+    
+    sendDefault: ->
+        if DEFAULTICON then return @sendIcon DEFAULTICON
+        @log @defaultIcon
+        _ = @
+        fs.readFile @defaultIcon, "binary", ( $err, $data )->
+            console.log $err
+            if not $err
+                DEFAULTICON = $data
+                _.sendIcon.call _, $data
+            else
+                @res.send 'error', 500
+                @res.end()
+
+    sendIcon: ( $icon )->
+        
+        @log 'send...'
+
+        try
+            header =
+                'Content-Type': "image/x-icon"
+                'Content-Length': $icon.length
+                'ETag': @key
+                'Cache-Control': 'public max-age=3600'
+
+            @res.writeHead 200, header
+            @res.write $icon, 'binary'
+            @res.end()
+        catch $err
+            @res.send 'error', 500
+            @res.end()
+
+    saveFile: ( $icon )->
+        _ = @
+        fs.writeFile "#{ @savePath }/#{ @key }", $icon, 'binary', ( $err )->
+            if $err
+
+                _.log.call _, '保存cache文件时出问题了'
+                _.res.send 'error', 500
+                _.res.end()
+
+            else
+                console.log 'It\'s saved!'
+
+        
+# 检查是否是正确的URL
 isUrl = ( $url )->
     regexp = /((http|https):\/\/)?(\w+:{0,1}\w*@)?(\S+)(:[0-9]+)?(\/|\/([\w#!:.?+=&%@!\-\/]))?/
     return regexp.test $url
 
-iconFromUrl = ( $url, $key, $fun, $nonext=false )->
-    
-    console.log "try to find fav from #{$url}"
-
-    if finish[ $key ] then return false
-
-    favurl = _url = $url
-    favurl = "http://#{ favurl }" if not /^http/.test favurl
-    favurl = url.parse( favurl )
-    _url = "#{ favurl.protocol }//#{ favurl.hostname }/favicon.ico"
-
-    request.get uri: _url, encoding: 'binary', timeout: 5000, ( $err, $res, $body )->
-
-        if not $err and 200 is $res.statusCode and isImage $res.headers
-            console.log 'no err'
-            return $fun { err: 0, data: $body }
-        else
-            console.log 'err'
-            if htmlprocess[ $key ] then return $fun { err: 1, data: favurl.hostname }
-            if not $nonext then iconFromHTML favurl.href, $key, $fun, favurl.hostname
-
-        finish[ $key ] = true
-
-    #if not $nonext then iconFromHTML favurl.href, $key, $fun
-
-iconFromHTML = ( $pageurl, $key, $fun, $host )->
-
-    if finish[ $key ] then return false
-    request.get uri: $pageurl, timeout: 5000, ( $err, $res, $body )->
-
-        if not $err and 200 is $res.statusCode
-            console.log 'haha...find from html'
-
-            pageurl = url.parse $pageurl
-
-            link = $body.match /<link.*(shortcut )?icon.*\/>/g
-            link = link[0] if link? and link[0]?
-
-            reg = /href\=[\"|\'](.+\.ico)[\"|\']/gi
-            reg.exec link
-            ico = RegExp.$1
-
-            console.log "ico is #{ico}"
-
-            if /^http/.test ico
-                ico = ico
-            else
-                ico = if /^\//.test ico then "#{ pageurl.protocol }//#{ pageurl.hostname }#{ ico }" else "#{ $pageurl }/#{ ico }"
-            
-            iconFromUrl ico, $key, $fun, htmlprocess[ $key ] = true
-        else
-            console.log 'find from htm err'
-            $fun { err: 1, data: $host }
-
-
-
-isImage = ( $header )->
-    
-    return /image/.test $header['content-type']
-
-
-main = ( $url, $key, $fun )->
-    
-    console.log "URL:#{ $url }"
-
-    fn = $fun || ( $result )->
-        if not finish[ $key ]
-            console.log $result
-        finish[ $key ] = true
-
-    if isUrl $url
-        iconFromUrl $url, $key, fn
-
-if require.main is module
-    main.apply this, process.argv.slice(2)
-
-module.exports = main
+module.exports = favService
