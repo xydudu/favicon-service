@@ -148,7 +148,6 @@ class favService
                 _.sendIcon.call _, $data
             else
                 @res.send 'error', 500
-                @res.end()
 
     sendIcon: ( $icon )->
         
@@ -166,16 +165,14 @@ class favService
             @res.end()
         catch $err
             @res.send 'error', 500
-            @res.end()
 
     saveFile: ( $icon )->
         _ = @
         fs.writeFile "#{ @savePath }/#{ @key }", $icon, 'binary', ( $err )->
             if $err
-
+                console.log $err
                 _.log.call _, '保存cache文件时出问题了'
                 _.res.send 'error', 500
-                _.res.end()
 
             else
                 console.log 'It\'s saved!'
