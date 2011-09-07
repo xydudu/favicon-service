@@ -5,14 +5,10 @@
 #   查找页面 link(rel="icon") 的
 #   默认的
 
-sys     = require 'sys'
 fav     = require './module/favicon'
 express = require 'express'
-request = require 'request'
-
 app     = express.createServer()
-icon    = false
-sended  = false
+fs      = require 'fs'
 
 app.use express.bodyParser()
 app.use express.static(__dirname + '/public')
@@ -27,24 +23,11 @@ app.get /^\/fav\/(.+)/, ( req, res ) ->
 
     
 app.get "/", ( req, res ) ->
-
-    res.render 'index', domain: 'node.local:8081'
+    fs.readdir "#{__dirname}/public/cache", ( $err, $files )->
+        console.log $files
+        #res.render 'index', domain: 'favicon.xydudu.com', files: $files
+        res.render 'index', domain: 'node.local:8081', files: $files
         
-
-console.log 'ok, port 8081'
+console.log 'ok, port 8080'
 app.listen '8081'
 
-saveFile = ( $key, $data )->
-
-    fs.writeFile "#{__dirname}/public/cache/#{$key}", $data, 'binary', ( $err )->
-        if $err
-            console.log 'save have problem'
-        else
-            console.log 'It\'s saved!'
-
-getFromAPI = ( $url, $fun )->
-    request.get uri: "http://www.google.com/s2/favicons?domain=#{$url}", encoding: 'binary', timeout: 10000, ( $err, $res, $data )->
-        if not $err then return $fun $data
-        fs.readFile "#{__dirname}/public/favicon.png", "binary", ( $err, _data )->
-            if not $err
-                $fun _data

@@ -4,12 +4,10 @@ html
     title Get the favicon from anysite you given
   body 
     h1 取得网站的favicon    
-    p 示例：http://favicon.xyudu.com/fav/www.google.com
-    //img(src="http://"+ domain +"/fav/www.baidu.com")
-    //img(src="http://"+ domain +"/fav/google.com")
-    img(src="http://"+ domain +"/fav/http://www.tudou.com")
-    img(src="http://"+ domain +"/fav/http://www.tazai.com")
-    img(src="http://"+ domain +"/fav/http://www.twitter.com")
+    p 示例：http://yourservice/fav/www.google.com
+    -for ( var i in files )
+      img(src="http://"+ domain +"/cache/"+ files[i])
+
     p -----------------------
     p 
       a(href="https://github.com/xydudu/favicon-service") github.com

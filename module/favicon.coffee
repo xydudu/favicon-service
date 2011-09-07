@@ -44,7 +44,7 @@ class favService
         
         # Cache File
         _ = @
-        fs.readFile "#{ @savePath }/#{ @key }", "binary", ( $err, $data )->
+        fs.readFile "#{ @savePath }/#{ @key }.png", "binary", ( $err, $data )->
             
             _.process = CACHEOVER
             if $err
@@ -168,7 +168,7 @@ class favService
 
     saveFile: ( $icon )->
         _ = @
-        fs.writeFile "#{ @savePath }/#{ @key }", $icon, 'binary', ( $err )->
+        fs.writeFile "#{ @savePath }/#{ @key }.png", $icon, 'binary', ( $err )->
             if $err
                 console.log $err
                 _.log.call _, '保存cache文件时出问题了'
