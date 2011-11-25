@@ -22,7 +22,7 @@ app.get /^\/fav\/(.+)/, ( req, res ) ->
     f = new fav favurl, req, res, "#{__dirname}/public/favicon.png", "#{__dirname}/public/cache"
 
     
-app.get "/", ( req, res ) ->
+app.get "/fav", ( req, res ) ->
     fs.readdir "#{__dirname}/public/cache", ( $err, $files )->
         console.log $files
         #res.render 'index', domain: 'favicon.xydudu.com', files: $files
