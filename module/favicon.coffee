@@ -112,7 +112,7 @@ class favService
                     else
                         ico = if /^\//.test ico then "#{ pageurl.protocol }//#{ pageurl.hostname }#{ ico }" else "#{ $url }/#{ ico }"
                 
-                    _log.call _, "ico是[#{ ico }]"
+                    _.log.call _, "ico是[#{ ico }]"
                     _.getIcon ico, $fun
                 else
                     $fun { err: 1, data: $url }
