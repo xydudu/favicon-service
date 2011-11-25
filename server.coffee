@@ -26,8 +26,8 @@ app.get "/fav", ( req, res ) ->
     fs.readdir "#{__dirname}/public/cache", ( $err, $files )->
         console.log $files
         #res.render 'index', domain: 'favicon.xydudu.com', files: $files
-        res.render 'index', domain: 'common.tazai.com/fav', files: $files
+        res.render 'index', domain: 'common.tazai.com:8081', files: $files
         
-console.log 'ok, port 8080'
+console.log 'ok, port 8081'
 app.listen '8081'
 
