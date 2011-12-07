@@ -9,6 +9,8 @@ fav     = require './module/favicon'
 express = require 'express'
 app     = express.createServer()
 fs      = require 'fs'
+cluster = require 'cluster'
+numCPUs = require('os').cpus().length
 
 app.use express.bodyParser()
 app.use express.static(__dirname + '/public')
@@ -28,6 +30,16 @@ app.get "/fav", ( req, res ) ->
         #res.render 'index', domain: 'favicon.xydudu.com', files: $files
         res.render 'index', domain: 'common.tazai.com:8081', files: $files
         
-console.log 'ok, port 8081'
-app.listen '8081'
+if cluster.isMaster
+
+    cluster.fork() for n in [ numCPUs .. 1 ]
+    cluster.on 'death', ( worker )->
+        cluster.fork()
+        console.log "worker #{ worker.pid } died"
+        ###
+        TODO over 10 times death, must email the exception
+        ###
+
+else
+    app.listen '8181'
 
